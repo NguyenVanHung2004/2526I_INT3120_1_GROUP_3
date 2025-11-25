@@ -1,79 +1,95 @@
 package com.example.aijournalingapp.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
-fun EmotionTree(
-    moodScore: Float, // 0.0 (Buồn) -> 1.0 (Vui)
-    entryCount: Int // Số lượng nhật ký
+fun EmotionTreeArt(
+    moodScore: Float,
+    entryCount: Int
 ) {
-    // 1. Tính toán màu sắc dựa trên moodScore
-    val leafColor = when {
-        moodScore >= 0.7f -> Color(0xFF4CAF50) // Xanh lá (Vui)
-        moodScore >= 0.4f -> Color(0xFFFFC107) // Vàng (Bình thường)
-        else -> Color(0xFFFF5722) // Cam đỏ (Buồn/Lo)
+    // Animation nhịp thở nhẹ nhàng
+    val infiniteTransition = rememberInfiniteTransition(label = "breathing")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "scale"
+    )
+
+    // Màu sắc cây thay đổi theo Mood
+    val treeColor = when {
+        moodScore >= 0.7f -> Color(0xFF81C784) // Green 300
+        moodScore >= 0.4f -> Color(0xFFFFD54F) // Amber 300
+        else -> Color(0xFFFF8A65) // Deep Orange 300
     }
 
-    // 2. Tính toán kích thước tán cây dựa trên số lượng bài viết (Max 50 bài là full size)
-    val growthFactor = (entryCount / 10f).coerceIn(0.5f, 1.5f)
-    val animatedScale by animateFloatAsState(targetValue = growthFactor, label = "treeScale")
-
-    Box(contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(200.dp)) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
-
-            // --- Vẽ Thân cây (Cố định) ---
-            val trunkWidth = canvasWidth * 0.1f
-            val trunkHeight = canvasHeight * 0.4f
-
-            drawRect(
-                color = Color(0xFF795548), // Màu nâu
-                topLeft = Offset((canvasWidth - trunkWidth) / 2, canvasHeight - trunkHeight),
-                size = Size(trunkWidth, trunkHeight)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(240.dp)
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White, Color(0xFFF1F8E9))
+                ),
+                shape = CircleShape
             )
+    ) {
+        Canvas(modifier = Modifier.size(180.dp).scale(scale)) {
+            val w = size.width
+            val h = size.height
 
-            // --- Vẽ Tán lá (Thay đổi theo biến) ---
-            // Dùng scale để phóng to/thu nhỏ tán lá
-            val leafRadius = (canvasWidth * 0.35f) * animatedScale
+            // 1. Vẽ thân cây (Dáng cong mềm mại)
+            val trunkPath = Path().apply {
+                moveTo(w * 0.45f, h)
+                quadraticBezierTo(w * 0.5f, h * 0.8f, w * 0.5f, h * 0.6f)
+                quadraticBezierTo(w * 0.5f, h * 0.8f, w * 0.55f, h)
+                close()
+            }
+            drawPath(path = trunkPath, color = Color(0xFF8D6E63)) // Brown
 
-            drawCircle(
-                color = leafColor,
-                radius = leafRadius,
-                center = Offset(canvasWidth / 2, canvasHeight / 2 - (trunkHeight * 0.2f))
-            )
+            // 2. Vẽ tán lá (Nhiều vòng tròn xếp chồng)
+            // Tán càng to nếu entryCount càng lớn (max size = 1.5)
+            val growth = (1f + (entryCount * 0.05f)).coerceAtMost(1.5f)
 
-            // Vẽ thêm 2 tán phụ nhỏ hơn cho đẹp
-            drawCircle(
-                color = leafColor.copy(alpha = 0.8f),
-                radius = leafRadius * 0.7f,
-                center = Offset(canvasWidth / 2 - leafRadius * 0.6f, canvasHeight / 2)
-            )
-            drawCircle(
-                color = leafColor.copy(alpha = 0.8f),
-                radius = leafRadius * 0.7f,
-                center = Offset(canvasWidth / 2 + leafRadius * 0.6f, canvasHeight / 2)
-            )
+            val radiusMain = w * 0.35f * growth
+
+            // Tán chính
+            drawCircle(color = treeColor, center = Offset(w * 0.5f, h * 0.4f), radius = radiusMain)
+            // Tán phụ trái
+            drawCircle(color = treeColor.copy(alpha = 0.9f), center = Offset(w * 0.3f, h * 0.5f), radius = radiusMain * 0.7f)
+            // Tán phụ phải
+            drawCircle(color = treeColor.copy(alpha = 0.9f), center = Offset(w * 0.7f, h * 0.5f), radius = radiusMain * 0.7f)
         }
 
-        // Hiển thị text trạng thái
+        // Text chỉ số
         Text(
-            text = if (moodScore >= 0.5) "Cây đang vui" else "Cây cần chăm sóc",
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            text = "${(moodScore * 100).toInt()}% An Yên",
+            color = Color(0xFF546E7A),
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)
         )
     }
 }
