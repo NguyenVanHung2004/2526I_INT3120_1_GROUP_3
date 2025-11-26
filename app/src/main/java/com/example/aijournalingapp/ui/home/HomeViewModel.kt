@@ -9,28 +9,43 @@ class HomeViewModel : ViewModel() {
     var journals = mutableStateOf(FakeRepository.getAll())
         private set
 
-    // Thêm 2 biến state cho cây
-    var treeMoodScore = mutableStateOf(1.0f) // Mặc định là vui
+    var treeMoodScore = mutableStateOf(1.0f)
     var entryCount = mutableStateOf(0)
 
-    fun refreshData() {
+    fun refreshData(context: android.content.Context) {
+        // Gọi hàm load từ file trước khi lấy dữ liệu
+        FakeRepository.loadData(context)
+
         val data = FakeRepository.getAll()
         journals.value = data
 
-        // Logic tính toán cho cây
         entryCount.value = data.size
         treeMoodScore.value = calculateMoodScore(data)
     }
 
     private fun calculateMoodScore(list: List<JournalEntry>): Float {
-        if (list.isEmpty()) return 1.0f // Chưa viết gì thì mặc định cây xanh
+        if (list.isEmpty()) return 1.0f
 
         var totalScore = 0.0f
-        list.forEach {
-            totalScore += when (it.mood) {
-                "Vui" -> 1.0f
-                "Bình thường" -> 0.5f
-                "Buồn", "Lo lắng" -> 0.0f
+        list.forEach { entry ->
+            // Mood bây giờ có dạng: "Emoji Tên" (VD: "😄 Vui", "🤯 Bận rộn")
+            // Nên ta dùng contains để kiểm tra từ khóa thay vì so sánh bằng (==)
+            totalScore += when {
+                // Nhóm Tích cực (1.0 điểm)
+                entry.mood.contains("Vui") ||
+                        entry.mood.contains("Hạnh phúc") ||
+                        entry.mood.contains("Tuyệt") ||
+                        entry.mood.contains("Hào hứng") ||
+                        entry.mood.contains("May mắn") -> 1.0f
+
+                // Nhóm Tiêu cực (0.0 điểm)
+                entry.mood.contains("Buồn") ||
+                        entry.mood.contains("Lo lắng") ||
+                        entry.mood.contains("Tệ") ||
+                        entry.mood.contains("Mệt") ||
+                        entry.mood.contains("Chán") -> 0.0f
+
+                // Nhóm Bình thường / Trung tính (0.5 điểm)
                 else -> 0.5f
             }
         }

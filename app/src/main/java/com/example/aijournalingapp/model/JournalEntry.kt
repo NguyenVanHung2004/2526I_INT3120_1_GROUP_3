@@ -1,5 +1,6 @@
 package com.example.aijournalingapp.model
 
+import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -11,4 +12,4 @@ data class JournalEntry(
     val mood: String,
     val date: String = SimpleDateFormat("dd/MM", Locale("vi", "VN")).format(Date()),
     val fakeAiAdvice: String // Giả lập lời khuyên AI
-)
+): Serializable

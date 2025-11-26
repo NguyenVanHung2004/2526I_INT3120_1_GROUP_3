@@ -77,7 +77,7 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
         bottomBar = {
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp).shadow(10.dp, RoundedCornerShape(16.dp))) {
                 Button(
-                    onClick = { viewModel.saveEntry(onSuccess = onNavigateBack) },
+                    onClick = { viewModel.saveEntry(context, onSuccess = onNavigateBack) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
                     shape = RoundedCornerShape(16.dp),
@@ -102,9 +102,9 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
 
             // --- TOGGLE CHUYỂN CHẾ ĐỘ ---
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                ModeChip(text = "Tự viết ✍️", isSelected = !viewModel.isAiMode) { viewModel.isAiMode = false }
+                ModeChip(text = "Tự viết ", isSelected = !viewModel.isAiMode) { viewModel.isAiMode = false }
                 Spacer(modifier = Modifier.width(12.dp))
-                ModeChip(text = "AI Thám tử 🕵️", isSelected = viewModel.isAiMode) { viewModel.isAiMode = true }
+                ModeChip(text = "AI Thám tử", isSelected = viewModel.isAiMode) { viewModel.isAiMode = true }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

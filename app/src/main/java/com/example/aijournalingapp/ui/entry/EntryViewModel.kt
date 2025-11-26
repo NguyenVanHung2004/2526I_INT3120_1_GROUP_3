@@ -164,11 +164,16 @@ class EntryViewModel : ViewModel() {
             } ?: ""
     }
 
-    fun saveEntry(onSuccess: () -> Unit) {
+    fun saveEntry(context: Context, onSuccess: () -> Unit) {
         if (content.isNotBlank()) {
             val finalMood = "$selectedEmoji $selectedMood"
             val finalAdvice = if (generatedAdvice.isNotBlank()) generatedAdvice else "Một ngày đáng nhớ!"
-            FakeRepository.add(JournalEntry(content = content, mood = finalMood, fakeAiAdvice = finalAdvice))
+            val newEntry = JournalEntry(
+                content = content,
+                mood = finalMood,
+                fakeAiAdvice = finalAdvice
+            )
+            FakeRepository.add(newEntry,context)
             onSuccess()
         }
     }

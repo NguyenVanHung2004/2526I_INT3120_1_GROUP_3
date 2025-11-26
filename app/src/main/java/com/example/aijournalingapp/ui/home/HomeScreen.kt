@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.aijournalingapp.ui.components.EmotionTreeArt
+import androidx.compose.ui.platform.LocalContext
 
 // Màu cục bộ
 private val BgColor = Color(0xFFF9F7F2) // Trắng kem
@@ -34,7 +35,8 @@ private val AccentGreen = Color(0xFF81C784)
 
 @Composable
 fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewModel()) {
-    LaunchedEffect(Unit) { viewModel.refreshData() }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { viewModel.refreshData(context) }
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         LazyColumn(
@@ -100,12 +102,20 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
 @Composable
 fun HealingJournalItem(date: String, mood: String, content: String, onClick: () -> Unit) {
     // Màu mood chấm nhỏ
-    val moodColor = when (mood) {
-        "Vui" -> Color(0xFF81C784)
-        "Buồn" -> Color(0xFFFF8A65)
+    val moodColor = when {
+
+        mood.contains("Vui") ||
+                mood.contains("Hạnh phúc") ||
+                mood.contains("Tuyệt") ||
+                mood.contains("Hào hứng") ||
+                mood.contains("May mắn") -> Color(0xFF81C784)
+        mood.contains("Buồn") ||
+                mood.contains("Lo lắng") ||
+                mood.contains("Tệ") ||
+                mood.contains("Mệt") ||
+                mood.contains("Chán") -> Color(0xFFFF8A65)
         else -> Color(0xFFFFD54F)
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
