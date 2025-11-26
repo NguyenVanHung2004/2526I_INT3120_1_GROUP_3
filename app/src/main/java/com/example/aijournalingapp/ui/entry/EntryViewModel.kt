@@ -2,6 +2,7 @@ package com.example.aijournalingapp.ui.entry
 
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -66,9 +67,9 @@ class EntryViewModel : ViewModel() {
 
     // 2. AI Viết hộ (Smart Scan) - Logic Nâng Cấp
     fun generateSmartDiary(context: Context) {
-        val notiSummary = MyNotificationListenerService.getActiveNotificationsSummary()
+        val notiSummary = MyNotificationListenerService.getNotificationHistory(context)
         val appUsage = getTopUsedApps(context)
-
+        Log.e("Noti",notiSummary);
         // Nếu không có gì đặc biệt
         if (notiSummary.isBlank() && appUsage.isBlank()) {
             content = "Một ngày trôi qua thật nhẹ nhàng, điện thoại im ắng, mình cũng có thời gian cho riêng bản thân."

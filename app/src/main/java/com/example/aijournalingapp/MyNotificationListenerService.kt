@@ -1,42 +1,84 @@
 package com.example.aijournalingapp
 
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
 class MyNotificationListenerService : NotificationListenerService() {
 
     companion object {
-        // Lưu tạm danh sách thông báo để ViewModel lấy
-        // Cấu trúc: "Tên App: Nội dung thông báo"
-        fun getActiveNotificationsSummary(): String {
-            // Hàm này sẽ được gọi từ UI/ViewModel, nhưng vì Service chạy ngầm
-            // nên ta cần một cách hack nhẹ là truy cập trực tiếp instance nếu có thể
-            // Tuy nhiên, cách chuẩn nhất là dùng getActiveNotifications() từ ngữ cảnh Service.
-            // Ở đây ta dùng biến static để lưu cache đơn giản.
-            return recentNotifications.joinToString("\n")
-        }
+        private const val PREF_NAME = "ai_journal_prefs"
+        private const val KEY_HISTORY = "noti_history_log"
 
-        private val recentNotifications = mutableListOf<String>()
+        // Hàm này được gọi từ ViewModel: Lấy lịch sử đã lưu trong máy
+        fun getNotificationHistory(context: Context): String {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            val rawData = prefs.getString(KEY_HISTORY, "") ?: ""
+
+            if (rawData.isBlank()) return ""
+
+            // Xử lý lọc dữ liệu cũ (> 24h)
+            val oneDayAgo = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+            val validLogs = mutableListOf<String>()
+            val newHistoryBuilder = StringBuilder()
+
+            // Cấu trúc lưu: ThờiGian|||NộiDung###
+            rawData.split("###").forEach { entry ->
+                if (entry.isNotBlank()) {
+                    val parts = entry.split("|||")
+                    if (parts.size >= 2) {
+                        val timestamp = parts[0].toLongOrNull() ?: 0L
+                        // Chỉ lấy tin trong 24h qua
+                        if (timestamp > oneDayAgo) {
+                            validLogs.add(parts[1])
+                            // Giữ lại để lưu bản mới gọn hơn
+                            newHistoryBuilder.append(entry).append("###")
+                        }
+                    }
+                }
+            }
+
+            // Lưu ngược lại danh sách đã lọc (để xóa bớt rác cũ)
+            prefs.edit().putString(KEY_HISTORY, newHistoryBuilder.toString()).apply()
+
+            // Trả về danh sách (đảo ngược để tin mới nhất lên đầu)
+            return validLogs.reversed().joinToString("\n")
+        }
     }
 
+    // Khi có thông báo mới -> Ghi ngay vào bộ nhớ
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         sbn?.let {
             val packageName = it.packageName
             val extras = it.notification.extras
-            val title = extras.getString("android.title")
-            val text = extras.getCharSequence("android.text")?.toString()
+            val title = extras.getString("android.title") ?: ""
+            val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
-            // Lọc bớt các thông báo rác (ví dụ: hệ thống android)
-            if (!packageName.contains("android") && !title.isNullOrBlank()) {
-                val info = "App: $packageName | Tiêu đề: $title | Nội dung: $text"
-                // Lưu 20 thông báo gần nhất thôi
-                if (recentNotifications.size > 20) recentNotifications.removeAt(0)
-                recentNotifications.add(info)
+            // Lọc rác: Bỏ qua thông báo hệ thống hoặc không có nội dung
+            if (title.isNotBlank() && !packageName.contains("android.systemui") && !packageName.contains("com.android.system")) {
+
+                // Format tên app cho đẹp (Demo vài cái chính)
+                val appName = when {
+                    packageName.contains("facebook.orca") -> "Messenger"
+                    packageName.contains("facebook.katana") -> "Facebook"
+                    packageName.contains("zalo") -> "Zalo"
+                    packageName.contains("shopee") -> "Shopee"
+                    packageName.contains("instagram") -> "Instagram"
+                    packageName.contains("tiktok") -> "TikTok"
+                    else -> packageName.substringAfterLast('.')
+                }
+
+                val logContent = "[$appName]: $title - $text"
+                val timestamp = System.currentTimeMillis()
+
+                // Chuỗi lưu: Time|||Content###
+                val newEntry = "$timestamp|||$logContent###"
+
+                // Ghi nối vào SharedPreferences
+                val prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                val currentHistory = prefs.getString(KEY_HISTORY, "")
+                prefs.edit().putString(KEY_HISTORY, currentHistory + newEntry).apply()
             }
         }
-    }
-
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        // Xử lý khi thông báo bị xóa nếu cần
     }
 }
