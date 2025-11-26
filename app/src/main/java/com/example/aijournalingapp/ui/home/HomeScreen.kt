@@ -38,7 +38,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 80.dp), // Chừa chỗ cho FAB
+            contentPadding = PaddingValues(bottom = 80.dp,top = 30.dp), // Chừa chỗ cho FAB
             modifier = Modifier.fillMaxSize()
         ) {
             // 1. Header

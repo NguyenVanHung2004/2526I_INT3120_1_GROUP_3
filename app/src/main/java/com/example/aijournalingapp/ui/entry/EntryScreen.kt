@@ -1,11 +1,13 @@
 package com.example.aijournalingapp.ui.entry
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -15,10 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome // Icon ngôi sao cho AI
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,7 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Màu sắc chủ đạo
+// Màu sắc
 private val BgGradientStart = Color(0xFFFDFBF7)
 private val BgGradientEnd = Color(0xFFEFEBE9)
 private val SurfaceColor = Color.White
@@ -49,18 +48,14 @@ private val AccentColor = Color(0xFF78909C)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> Unit) {
-    val moodSuggestions = mapOf("Vui" to "😄", "Bình thường" to "😐", "Buồn" to "😢", "Lo lắng" to "😟")
+    val moodMap = mapOf("Vui" to "😄", "Bình thường" to "😐", "Buồn" to "😢", "Lo lắng" to "😟")
+    val context = LocalContext.current
 
-    // Launcher giọng nói
-    val speechRecognizerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    // Launcher: Giọng nói
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val spokenText = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
-            if (spokenText != null) {
-                viewModel.content = if (viewModel.content.isBlank()) spokenText else "${viewModel.content} $spokenText"
-            }
+            val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0)
+            if (text != null) viewModel.content = if (viewModel.content.isBlank()) text else "${viewModel.content} $text"
         }
     }
 
@@ -70,12 +65,11 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { },
+                title = {},
                 navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.padding(8.dp).background(Color.White.copy(alpha = 0.6f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBack, null, tint = TextPrimary) }
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.padding(8.dp).background(Color.White.copy(0.6f), CircleShape)) {
+                        Icon(Icons.Default.ArrowBack, null, tint = TextPrimary)
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
@@ -87,11 +81,14 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = viewModel.content.isNotBlank()
+                    enabled = viewModel.content.isNotBlank() && !viewModel.isAnalyzing
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Lưu ký ức", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    if (viewModel.isAnalyzing) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    else {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Lưu ký ức", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -99,138 +96,112 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd))))
 
         Column(modifier = Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()) {
-            // Header
-            Text(
-                text = currentDate.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() },
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, color = TextPrimary)
-            )
-            // [MỚI] Hiển thị Cảm xúc hiện tại (AI chọn hoặc Người dùng chọn)
-            Spacer(modifier = Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Cảm xúc:", style = MaterialTheme.typography.bodyMedium, color = AccentColor)
-                Spacer(modifier = Modifier.width(8.dp))
 
-                // Chip hiển thị cảm xúc Dynamic
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color(0xFFFFF9C4), // Vàng nhạt
-                    border = BorderStroke(1.dp, Color(0xFFFBC02D)),
-                    shadowElevation = 2.dp
-                ) {
-                    Text(
-                        text = "${viewModel.selectedEmoji} ${viewModel.selectedMood}",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TextPrimary)
-                    )
-                }
-            }
-
-            // Danh sách gợi ý (để chọn nhanh nếu muốn đổi)
+            Text(currentDate.replaceFirstChar { it.titlecase() }, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, color = TextPrimary))
             Spacer(modifier = Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                moodSuggestions.forEach { (mood, emoji) ->
-                    MoodItem(
-                        text = mood,
-                        emoji = emoji,
-                        // Chỉ highlight nếu mood trùng khớp hoàn toàn
-                        isSelected = viewModel.selectedMood == mood,
-                        onClick = {
-                            viewModel.selectedMood = mood
-                            viewModel.selectedEmoji = emoji
-                        }
-                    )
-                }
+
+            // --- TOGGLE CHUYỂN CHẾ ĐỘ ---
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                ModeChip(text = "Tự viết ✍️", isSelected = !viewModel.isAiMode) { viewModel.isAiMode = false }
+                Spacer(modifier = Modifier.width(12.dp))
+                ModeChip(text = "AI Thám tử 🕵️", isSelected = viewModel.isAiMode) { viewModel.isAiMode = true }
             }
 
-            // [MỚI] Khu vực hiển thị Lời khuyên AI
-            if (viewModel.generatedAdvice.isNotBlank()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2F1)), // Màu xanh ngọc nhạt
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, null, tint = Color(0xFF00695C), modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = viewModel.generatedAdvice,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic, lineHeight = 20.sp),
-                            color = Color(0xFF004D40)
-                        )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // MOOD DISPLAY
+            AnimatedVisibility(visible = !viewModel.isAiMode, enter = fadeIn(), exit = fadeOut()) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    moodMap.forEach { (mood, emoji) ->
+                        MoodItem(text = mood, emoji = emoji, isSelected = viewModel.selectedMood == mood, onClick = { viewModel.selectedMood = mood; viewModel.selectedEmoji = emoji })
+                    }
+                }
+            }
+            // Khi AI chọn Mood thì hiện chip kết quả
+            AnimatedVisibility(visible = viewModel.isAiMode && viewModel.selectedMood != "Bình thường", enter = fadeIn()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tâm trạng:", style = MaterialTheme.typography.labelMedium, color = AccentColor)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFFFFF9C4), border = BorderStroke(1.dp, Color(0xFFFBC02D))) {
+                        Text("${viewModel.selectedEmoji} ${viewModel.selectedMood}", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.titleSmall.copy(color = TextPrimary))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // AI ADVICE CARD
+            if (viewModel.generatedAdvice.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2F1)), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AutoAwesome, null, tint = Color(0xFF00695C), modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(viewModel.generatedAdvice, style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = Color(0xFF004D40))
+                    }
+                }
+            }
 
-            // Vùng nhập liệu
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(SurfaceColor)
-            ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // TEXT FIELD
+            Box(modifier = Modifier.weight(1f).shadow(4.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(SurfaceColor)) {
                 TextField(
                     value = viewModel.content,
                     onValueChange = { viewModel.content = it },
-                    modifier = Modifier.fillMaxSize().padding(16.dp).padding(bottom = 70.dp), // Chừa chỗ cho nút chức năng
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = TextPrimary
-                    ),
+                    modifier = Modifier.fillMaxSize().padding(16.dp).padding(bottom = if (viewModel.isAiMode) 70.dp else 0.dp),
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, cursorColor = TextPrimary),
                     placeholder = {
-                        if (viewModel.isAnalyzing) {
-                            Text("Đang suy ngẫm về câu chuyện của bạn...", color = AccentColor, fontStyle = FontStyle.Italic)
-                        } else {
-                            Text("Viết ra những suy nghĩ của bạn...\n(Hoặc bấm Micro để nói)", color = Color.LightGray, fontSize = 18.sp, fontFamily = FontFamily.Serif)
-                        }
+                        if (viewModel.isAnalyzing) Text("AI đang điều tra...", color = AccentColor, fontStyle = FontStyle.Italic)
+                        else Text(if (viewModel.isAiMode) "Bấm nút bên dưới để AI soi điện thoại bạn..." else "Viết gì đó đi...", color = Color.LightGray, fontSize = 18.sp, fontFamily = FontFamily.Serif)
                     },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, color = TextPrimary, lineHeight = 28.sp, fontFamily = FontFamily.Serif),
                     readOnly = viewModel.isAnalyzing
                 )
 
-                // Cụm nút chức năng (AI & Micro) ở góc phải dưới
-                Row(
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // [MỚI] Nút 1: AI Phân Tích (Màu tím)
-                    FloatingActionButton(
-                        onClick = { viewModel.analyzeJournal() },
-                        containerColor = Color(0xFFF3E5F5), // Tím nhạt
-                        contentColor = Color(0xFF7B1FA2),
-                        elevation = FloatingActionButtonDefaults.elevation(2.dp),
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        if (viewModel.isAnalyzing) {
-                            // Hiệu ứng loading khi đang phân tích
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color(0xFF7B1FA2))
-                        } else {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Analyze", modifier = Modifier.size(24.dp))
-                        }
-                    }
+                // THANH CÔNG CỤ (Chỉ hiện Mic & AI Scan)
+                Row(modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                    // Nút 2: Voice Input (Màu xanh)
+                    // Nút Voice (Hiện ở cả 2 chế độ cho tiện)
                     FloatingActionButton(
                         onClick = {
                             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
-                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Đang lắng nghe...")
                             }
-                            try { speechRecognizerLauncher.launch(intent) } catch (e: Exception) { }
+                            try { speechLauncher.launch(intent) } catch (e: Exception) { }
                         },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = Color(0xFFE0F7FA),
-                        contentColor = Color(0xFF006064),
-                        elevation = FloatingActionButtonDefaults.elevation(2.dp)
-                    ) {
-                        Icon(Icons.Default.Mic, contentDescription = "Voice", modifier = Modifier.size(24.dp))
+                        modifier = Modifier.size(48.dp), containerColor = Color(0xFFE0F7FA), contentColor = Color(0xFF006064)
+                    ) { Icon(Icons.Default.Mic, "Voice") }
+
+                    // Nút Smart Scan (Chỉ hiện khi ở chế độ AI)
+                    AnimatedVisibility(visible = viewModel.isAiMode, enter = expandHorizontally(), exit = shrinkHorizontally()) {
+                        FloatingActionButton(
+                            onClick = {
+                                // Check quyền Usage Stats
+                                val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+                                val mode = appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName)
+                                val hasUsage = mode == android.app.AppOpsManager.MODE_ALLOWED
+
+                                // Check quyền Notification
+                                val listeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                val hasNoti = listeners != null && listeners.contains(context.packageName)
+
+                                if (hasUsage && hasNoti) {
+                                    viewModel.generateSmartDiary(context)
+                                } else {
+                                    if (!hasUsage) context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                    else context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                }
+                            },
+                            containerColor = Color(0xFFE3F2FD), contentColor = Color(0xFF1565C0), modifier = Modifier.size(48.dp).padding(start = 12.dp)
+                        ) { Icon(Icons.Default.Visibility, "Smart Scan") }
+                    }
+
+                    // Nút Analyze thủ công (Chỉ hiện khi ở chế độ Tự viết)
+                    AnimatedVisibility(visible = !viewModel.isAiMode && viewModel.content.isNotBlank(), enter = expandHorizontally(), exit = shrinkHorizontally()) {
+                        FloatingActionButton(
+                            onClick = { viewModel.analyzeJournal() },
+                            containerColor = Color(0xFFF3E5F5), contentColor = Color(0xFF7B1FA2), modifier = Modifier.size(48.dp).padding(start = 12.dp)
+                        ) { Icon(Icons.Default.AutoAwesome, "Analyze") }
                     }
                 }
             }
@@ -239,17 +210,29 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel(), onNavigateBack: () -> U
 }
 
 @Composable
-fun MoodItem(text: String, emoji: String, isSelected: Boolean, onClick: () -> Unit) {
-    val backgroundColor by animateColorAsState(if (isSelected) Color(0xFFFFF176) else Color.White, label = "color")
-    val shadowElevation = if (isSelected) 8.dp else 2.dp
+fun ModeChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    val bgColor by animateColorAsState(if (isSelected) Color(0xFF455A64) else Color.White, label = "bg")
+    val textColor by animateColorAsState(if (isSelected) Color.White else Color(0xFF455A64), label = "text")
 
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bgColor)
+            .border(1.dp, Color(0xFF455A64), RoundedCornerShape(50))
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(text, color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun MoodItem(text: String, emoji: String, isSelected: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (isSelected) Color(0xFFFFF176) else Color.White, label = "color")
+    val shadow = if (isSelected) 8.dp else 2.dp
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp).clickable(indication = null, interactionSource = null) { onClick() }) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(60.dp).shadow(shadowElevation, CircleShape).background(backgroundColor, CircleShape)
-                .border(width = if (isSelected) 2.dp else 0.dp, color = if (isSelected) Color(0xFFFBC02D) else Color.Transparent, shape = CircleShape)
-        ) { Text(emoji, fontSize = 28.sp) }
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(60.dp).shadow(shadow, CircleShape).background(bg, CircleShape).border(if (isSelected) 2.dp else 0.dp, if (isSelected) Color(0xFFFBC02D) else Color.Transparent, CircleShape)) { Text(emoji, fontSize = 28.sp) }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = text, style = MaterialTheme.typography.labelMedium, color = if (isSelected) TextPrimary else Color.Gray, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+        Text(text, style = MaterialTheme.typography.labelMedium, color = if (isSelected) TextPrimary else Color.Gray, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
     }
 }

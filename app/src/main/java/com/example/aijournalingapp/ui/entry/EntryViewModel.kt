@@ -1,23 +1,28 @@
 package com.example.aijournalingapp.ui.entry
 
+import android.app.usage.UsageStatsManager
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aijournalingapp.MyNotificationListenerService
 import com.example.aijournalingapp.data.FakeRepository
 import com.example.aijournalingapp.model.JournalEntry
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class EntryViewModel : ViewModel() {
     var content by mutableStateOf("")
     var selectedMood by mutableStateOf("Bình thường")
-    var selectedEmoji by mutableStateOf("😐") // [MỚI] Thêm biến Emoji riêng
+    var selectedEmoji by mutableStateOf("😐")
     var generatedAdvice by mutableStateOf("")
     var isAnalyzing by mutableStateOf(false)
+    var isAiMode by mutableStateOf(false)
 
-    // Key của bạn
+    // 🔑 Key của bạn
     private val apiKey = "AIzaSyCyDYrMlL7l9E8DnDVM744v6pb-i8CqnXU"
 
     private val generativeModel = GenerativeModel(
@@ -25,60 +30,120 @@ class EntryViewModel : ViewModel() {
         apiKey = apiKey
     )
 
+    // 1. Phân tích cảm xúc (Giữ nguyên)
     fun analyzeJournal() {
         if (content.isBlank()) return
-
         viewModelScope.launch {
             isAnalyzing = true
             try {
-                // Prompt mới: Yêu cầu AI tự do sáng tạo cảm xúc
                 val prompt = """
                     Phân tích nhật ký: "$content"
-                    1. Xác định cảm xúc chủ đạo (Tự do chọn từ ngữ chính xác nhất, ví dụ: Hào hứng, Biết ơn, Tiếc nuối, Cô đơn...).
-                    2. Chọn 1 Emoji phù hợp nhất với cảm xúc đó.
-                    3. Đưa ra lời khuyên ngắn (dưới 30 từ), xưng hô "mình" - "bạn".
-                    
-                    Trả về đúng định dạng này (không thêm text thừa):
-                    MOOD|EMOJI|ADVICE
-                    
-                    Ví dụ:
-                    Biết ơn|🙏|Hạnh phúc đôi khi chỉ là những điều giản đơn thế này.
+                    1. Chọn 1 cảm xúc chủ đạo.
+                    2. Chọn 1 Emoji.
+                    3. Lời khuyên ngắn (dưới 30 từ), xưng hô "mình" - "bạn".
+                    Format: MOOD|EMOJI|ADVICE
                 """.trimIndent()
 
                 val response = generativeModel.generateContent(prompt)
                 val text = response.text ?: ""
-
                 if (text.contains("|")) {
                     val parts = text.split("|")
                     if (parts.size >= 3) {
-                        selectedMood = parts[0].trim()  // Cảm xúc tự do (VD: Hào hứng)
-                        selectedEmoji = parts[1].trim() // Emoji (VD: 🤩)
+                        selectedMood = parts[0].trim()
+                        selectedEmoji = parts[1].trim()
                         generatedAdvice = parts[2].trim()
                     }
                 } else {
                     generatedAdvice = text
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                generatedAdvice = "Lỗi: ${e.message}"
+                generatedAdvice = "Lỗi AI: ${e.message}"
             } finally {
                 isAnalyzing = false
             }
         }
     }
 
+    // 2. AI Viết hộ (Smart Scan) - Logic Nâng Cấp
+    fun generateSmartDiary(context: Context) {
+        val notiSummary = MyNotificationListenerService.getActiveNotificationsSummary()
+        val appUsage = getTopUsedApps(context)
+
+        // Nếu không có gì đặc biệt
+        if (notiSummary.isBlank() && appUsage.isBlank()) {
+            content = "Một ngày trôi qua thật nhẹ nhàng, điện thoại im ắng, mình cũng có thời gian cho riêng bản thân."
+            analyzeJournal()
+            return
+        }
+
+        viewModelScope.launch {
+            isAnalyzing = true
+            content = "Đang phân tích thói quen hôm nay của bạn..."
+            try {
+                // Prompt thông minh theo logic bạn yêu cầu
+                val prompt = """
+                    Dựa trên dữ liệu điện thoại hôm nay:
+                    
+                    1. [Ứng dụng dùng nhiều (>1 tiếng)]: $appUsage
+                    2. [Danh sách thông báo]: 
+                    $notiSummary
+                    
+                    Hãy đóng vai tôi viết nhật ký (3-4 câu) theo quy tắc sau:
+                    
+                    - Ưu tiên 1: Nếu có nhiều thông báo quan trọng -> Viết dựa trên các sự kiện đó.
+                    
+                    - Ưu tiên 2 (Nếu ít thông báo): Nhìn vào ứng dụng dùng nhiều để phán đoán:
+                      + Nếu là App công việc (Zalo, Slack, Viber, Teams, Gmail...) -> Than thở nhẹ về một ngày bận rộn, cày cuốc vất vả.
+                      + Nếu là App giải trí (TikTok, YouTube, Facebook, Game...) -> Thú nhận hôm nay hơi lười, chỉ nằm lướt mạng giải trí.
+                      
+                    - Giọng văn: Tự nhiên, đời thường, như đang tự sự.
+                """.trimIndent()
+
+                val response = generativeModel.generateContent(prompt)
+                content = response.text ?: ""
+                analyzeJournal()
+            } catch (e: Exception) {
+                content = "Lỗi: ${e.message}"
+            } finally {
+                isAnalyzing = false
+            }
+        }
+    }
+
+    // Hàm lọc App dùng nhiều (> 60 phút)
+    private fun getTopUsedApps(context: Context): String {
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val calendar = Calendar.getInstance()
+        val endTime = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_YEAR, -1) // Lấy trong 24h qua
+        val startTime = calendar.timeInMillis
+
+        val usageStatsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+
+        return usageStatsList
+            ?.filter {
+                // Chỉ lấy app dùng hơn 1 tiếng (60 phút) và không phải chính app này
+                it.packageName != context.packageName &&
+                        it.totalTimeInForeground > 60 * 60 * 1000
+            }
+            ?.sortedByDescending { it.totalTimeInForeground }
+            ?.take(3)
+            ?.joinToString(", ") {
+                // Chuyển đổi mili-giây sang giờ và phút cho dễ đọc
+                val totalMinutes = it.totalTimeInForeground / 60000
+                val hours = totalMinutes / 60
+                val minutes = totalMinutes % 60
+                val timeString = if (hours > 0) "${hours}h${minutes}p" else "${minutes}p"
+
+                "${it.packageName.substringAfterLast('.')} ($timeString)"
+            } ?: ""
+    }
+
     fun saveEntry(onSuccess: () -> Unit) {
         if (content.isNotBlank()) {
-            // Lưu cả Mood và Emoji vào
             val finalMood = "$selectedEmoji $selectedMood"
             val finalAdvice = if (generatedAdvice.isNotBlank()) generatedAdvice else "Một ngày đáng nhớ!"
-
-            val newEntry = JournalEntry(
-                content = content,
-                mood = finalMood, // Lưu dạng "🤩 Hào hứng"
-                fakeAiAdvice = finalAdvice
-            )
-            FakeRepository.add(newEntry)
+            FakeRepository.add(JournalEntry(content = content, mood = finalMood, fakeAiAdvice = finalAdvice))
             onSuccess()
         }
     }
