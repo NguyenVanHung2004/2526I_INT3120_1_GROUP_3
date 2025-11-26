@@ -50,11 +50,20 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("Chào bạn,", style = MaterialTheme.typography.headlineMedium.copy(color = TextLight))
-                        Text("Hôm nay thế nào?", style = MaterialTheme.typography.headlineLarge.copy(color = TextDark, fontWeight = FontWeight.Bold))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Chào bạn,",
+                            style = MaterialTheme.typography.headlineMedium.copy(color = TextLight)
+                        )
+                        Text(
+                            "Hôm nay thế nào?",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                color = TextDark,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
                     }
-
+                    Spacer(modifier = Modifier.width(16.dp))
                     // [MỚI] Icon Streak (Chuỗi ngày)
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFECB3)), // Màu vàng cam nhạt
@@ -63,7 +72,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF6F00)) // Lửa cam đậm
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C))
+                            Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C),maxLines = 1)
                         }
                     }
                 }
