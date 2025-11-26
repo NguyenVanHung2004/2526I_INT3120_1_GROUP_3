@@ -10,42 +10,32 @@ class HomeViewModel : ViewModel() {
         private set
 
     var treeMoodScore = mutableStateOf(1.0f)
-    var entryCount = mutableStateOf(0)
+
+    // [MỚI] Thêm các biến trạng thái Game
+    var totalPoints = mutableStateOf(0)
+    var currentStreak = mutableStateOf(0)
 
     fun refreshData(context: android.content.Context) {
-        // Gọi hàm load từ file trước khi lấy dữ liệu
         FakeRepository.loadData(context)
 
         val data = FakeRepository.getAll()
-        journals.value = data
+        val stats = FakeRepository.getStats() // Lấy stats
 
-        entryCount.value = data.size
+        journals.value = data
         treeMoodScore.value = calculateMoodScore(data)
+
+        // Cập nhật UI
+        totalPoints.value = stats.totalPoints
+        currentStreak.value = stats.currentStreak
     }
 
     private fun calculateMoodScore(list: List<JournalEntry>): Float {
         if (list.isEmpty()) return 1.0f
-
         var totalScore = 0.0f
         list.forEach { entry ->
-            // Mood bây giờ có dạng: "Emoji Tên" (VD: "😄 Vui", "🤯 Bận rộn")
-            // Nên ta dùng contains để kiểm tra từ khóa thay vì so sánh bằng (==)
             totalScore += when {
-                // Nhóm Tích cực (1.0 điểm)
-                entry.mood.contains("Vui") ||
-                        entry.mood.contains("Hạnh phúc") ||
-                        entry.mood.contains("Tuyệt") ||
-                        entry.mood.contains("Hào hứng") ||
-                        entry.mood.contains("May mắn") -> 1.0f
-
-                // Nhóm Tiêu cực (0.0 điểm)
-                entry.mood.contains("Buồn") ||
-                        entry.mood.contains("Lo lắng") ||
-                        entry.mood.contains("Tệ") ||
-                        entry.mood.contains("Mệt") ||
-                        entry.mood.contains("Chán") -> 0.0f
-
-                // Nhóm Bình thường / Trung tính (0.5 điểm)
+                entry.mood.contains("Vui") || entry.mood.contains("Hạnh phúc") || entry.mood.contains("Tuyệt") -> 1.0f
+                entry.mood.contains("Buồn") || entry.mood.contains("Lo lắng") -> 0.0f
                 else -> 0.5f
             }
         }

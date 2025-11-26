@@ -25,7 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.aijournalingapp.ui.components.EmotionTreeArt
 import androidx.compose.ui.platform.LocalContext
-
+import androidx.compose.material.icons.filled.LocalFireDepartment
 // Màu cục bộ
 private val BgColor = Color(0xFFF9F7F2) // Trắng kem
 private val CardBg = Color.White
@@ -45,23 +45,40 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
         ) {
             // 1. Header
             item {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text("Chào bạn,", style = MaterialTheme.typography.headlineMedium.copy(color = TextLight))
-                    Text("Hôm nay thế nào?", style = MaterialTheme.typography.headlineLarge.copy(color = TextDark, fontWeight = FontWeight.Bold))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Chào bạn,", style = MaterialTheme.typography.headlineMedium.copy(color = TextLight))
+                        Text("Hôm nay thế nào?", style = MaterialTheme.typography.headlineLarge.copy(color = TextDark, fontWeight = FontWeight.Bold))
+                    }
+
+                    // [MỚI] Icon Streak (Chuỗi ngày)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFECB3)), // Màu vàng cam nhạt
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF6F00)) // Lửa cam đậm
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C))
+                        }
+                    }
                 }
             }
 
-            // 2. Cây cảm xúc
+            // 2. Cây cảm xúc (Truyền điểm vào để vẽ cây)
             item {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     EmotionTreeArt(
                         moodScore = viewModel.treeMoodScore.value,
-                        entryCount = viewModel.entryCount.value
+                        totalPoints = viewModel.totalPoints.value // Truyền điểm vào đây
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
-
             // 3. Tiêu đề List
             item {
                 Text(
