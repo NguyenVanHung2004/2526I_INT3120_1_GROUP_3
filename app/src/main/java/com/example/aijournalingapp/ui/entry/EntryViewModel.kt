@@ -111,31 +111,55 @@ class EntryViewModel : ViewModel() {
     }
 
     // Hàm lọc App dùng nhiều (> 60 phút)
+    // Hàm lọc App dùng nhiều (> 30 phút) & Dịch tên App cho chuẩn
     private fun getTopUsedApps(context: Context): String {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
-        calendar.add(Calendar.DAY_OF_YEAR, -1) // Lấy trong 24h qua
+        calendar.add(Calendar.DAY_OF_YEAR, -1) // Lấy dữ liệu 24h qua
         val startTime = calendar.timeInMillis
 
         val usageStatsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
 
+        // TỪ ĐIỂN DỊCH TÊN APP (Map từ tên gói sang tên thường gọi)
+        val appNameMap = mapOf(
+            "com.ss.android.ugc.trill" to "TikTok",
+            "com.zhiliaoapp.musically" to "TikTok",
+            "com.facebook.katana" to "Facebook",
+            "com.facebook.orca" to "Messenger",
+            "com.google.android.youtube" to "YouTube",
+            "com.zing.zalo" to "Zalo",
+            "com.instagram.android" to "Instagram",
+            "com.netflix.mediaclient" to "Netflix",
+            "com.spotify.music" to "Spotify",
+            "com.google.android.gm" to "Gmail",
+            "com.microsoft.teams" to "Teams",
+            "org.telegram.messenger" to "Telegram",
+            "com.shopee.vn" to "Shopee"
+        )
+
         return usageStatsList
             ?.filter {
-                // Chỉ lấy app dùng hơn 1 tiếng (60 phút) và không phải chính app này
+                // Lọc bỏ chính app này và các app hệ thống
                 it.packageName != context.packageName &&
-                        it.totalTimeInForeground > 60 * 60 * 1000
+                        it.totalTimeInForeground > 30 * 60 * 1000 && // Dùng trên 30 phút
+                        !it.packageName.contains("android") &&
+                        !it.packageName.contains("google.quicksearchbox") &&
+                        !it.packageName.contains("launcher") // Bỏ qua màn hình chính
             }
             ?.sortedByDescending { it.totalTimeInForeground }
-            ?.take(3)
+            ?.take(5) // Lấy top 5 app
             ?.joinToString(", ") {
-                // Chuyển đổi mili-giây sang giờ và phút cho dễ đọc
+                val rawName = it.packageName
+                // Nếu có trong từ điển thì lấy tên đẹp, không thì mới lấy tên đuôi
+                val name = appNameMap[rawName] ?: rawName.substringAfterLast('.')
+
                 val totalMinutes = it.totalTimeInForeground / 60000
                 val hours = totalMinutes / 60
                 val minutes = totalMinutes % 60
                 val timeString = if (hours > 0) "${hours}h${minutes}p" else "${minutes}p"
 
-                "${it.packageName.substringAfterLast('.')} ($timeString)"
+                "$name ($timeString)"
             } ?: ""
     }
 

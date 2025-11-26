@@ -118,7 +118,7 @@ fun HealingJournalItem(date: String, mood: String, content: String, onClick: () 
     ) {
         // Cột ngày tháng
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("24", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
+            Text(date, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
             Text("NOV", fontWeight = FontWeight.Medium, fontSize = 12.sp, color = TextLight)
         }
 

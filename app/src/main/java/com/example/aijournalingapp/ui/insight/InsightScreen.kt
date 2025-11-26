@@ -54,7 +54,7 @@ fun InsightScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 // 1. Ngày tháng & Mood
-                Text("Ngày 24 tháng 11", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                Text("Ngày" + entry.date, style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(entry.mood, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = TextDark)
 
