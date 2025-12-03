@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aijournalingapp.MyNotificationListenerService
-import com.example.aijournalingapp.data.FakeRepository
+import com.example.aijournalingapp.data.FirebaseRepository // DÙNG REPOSITORY MỚI
 import com.example.aijournalingapp.model.JournalEntry
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.launch
@@ -111,7 +111,6 @@ class EntryViewModel : ViewModel() {
         }
     }
 
-    // Hàm lọc App dùng nhiều (> 60 phút)
     // Hàm lọc App dùng nhiều (> 30 phút) & Dịch tên App cho chuẩn
     private fun getTopUsedApps(context: Context): String {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -168,13 +167,30 @@ class EntryViewModel : ViewModel() {
         if (content.isNotBlank()) {
             val finalMood = "$selectedEmoji $selectedMood"
             val finalAdvice = if (generatedAdvice.isNotBlank()) generatedAdvice else "Một ngày đáng nhớ!"
+
+            // Lấy timestamp hiện tại
+            val currentTimestamp = System.currentTimeMillis()
+
             val newEntry = JournalEntry(
                 content = content,
                 mood = finalMood,
-                fakeAiAdvice = finalAdvice
+                fakeAiAdvice = finalAdvice,
+                timestamp = currentTimestamp // Lưu timestamp
             )
-            FakeRepository.add(newEntry,context)
-            onSuccess()
+
+            viewModelScope.launch {
+                try {
+                    // GỌI HÀM THÊM ENTRY MỚI TRÊN FIREBASE
+                    FirebaseRepository.addJournalEntry(newEntry)
+                    onSuccess()
+                } catch (e: IllegalStateException) {
+                    Log.e("EntryViewModel", "Lỗi: Người dùng chưa đăng nhập. ${e.message}")
+                    // Yêu cầu người dùng đăng nhập lại, hoặc quay về màn hình Login
+                    // Trong ví dụ này, ta chỉ log lỗi.
+                } catch (e: Exception) {
+                    Log.e("EntryViewModel", "Lỗi lưu Firebase: ${e.message}")
+                }
+            }
         }
     }
 }

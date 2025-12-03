@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -41,6 +42,17 @@ android {
 
 dependencies {
 
+    // Firebase BOM để quản lý phiên bản
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0")) // Cập nhật phiên bản mới nhất
+
+    // Firebase Authentication
+    implementation("com.google.firebase:firebase-auth-ktx")
+
+    // Google Sign-in Client
+    implementation("com.google.android.gms:play-services-auth:21.0.0") // Cập nhật phiên bản mới nhất
+
+    // (Tùy chọn) Thêm Firestore nếu dùng cho dữ liệu
+    implementation("com.google.firebase:firebase-firestore-ktx")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

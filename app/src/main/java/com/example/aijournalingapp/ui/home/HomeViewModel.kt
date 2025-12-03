@@ -2,32 +2,49 @@ package com.example.aijournalingapp.ui.home
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.example.aijournalingapp.data.FakeRepository
+import androidx.lifecycle.viewModelScope
+import com.example.aijournalingapp.data.FirebaseRepository // DÙNG REPOSITORY MỚI
 import com.example.aijournalingapp.model.JournalEntry
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class HomeViewModel : ViewModel() {
-    var journals = mutableStateOf(FakeRepository.getAll())
+
+    // Flow từ Firebase Repository để nhận dữ liệu nhật ký theo thời gian thực
+    var journals = mutableStateOf<List<JournalEntry>>(emptyList())
         private set
 
-    var treeMoodScore = mutableStateOf(1.0f)
-
-    // [MỚI] Thêm các biến trạng thái Game
+    // Flow từ Firebase Repository để nhận Stats theo thời gian thực
     var totalPoints = mutableStateOf(0)
     var currentStreak = mutableStateOf(0)
 
-    fun refreshData(context: android.content.Context) {
-        FakeRepository.loadData(context)
+    var treeMoodScore = mutableStateOf(1.0f)
 
-        val data = FakeRepository.getAll()
-        val stats = FakeRepository.getStats() // Lấy stats
+    init {
+        // Khởi động lắng nghe dữ liệu khi ViewModel được tạo
+        viewModelScope.launch {
+            FirebaseRepository.getJournalEntriesFlow().collectLatest { data ->
+                journals.value = data
+                treeMoodScore.value = calculateMoodScore(data)
+            }
+        }
 
-        journals.value = data
-        treeMoodScore.value = calculateMoodScore(data)
-
-        // Cập nhật UI
-        totalPoints.value = stats.totalPoints
-        currentStreak.value = stats.currentStreak
+        viewModelScope.launch {
+            FirebaseRepository.getUserStatsFlow().collectLatest { stats ->
+                // Cập nhật UI từ stats mới nhất
+                totalPoints.value = stats.totalPoints
+                currentStreak.value = stats.currentStreak
+            }
+        }
     }
+
+    // Hàm refreshData không còn cần Context vì không dùng SharedPreferences nữa
+    fun refreshData() {
+        // Logic refresh bị loại bỏ vì đã dùng Realtime Flow (onSnapshotListener)
+        // Dữ liệu sẽ tự động cập nhật.
+        // Tuy nhiên, ta có thể gọi lại hàm tính toán Mood Score nếu cần
+    }
+
 
     private fun calculateMoodScore(list: List<JournalEntry>): Float {
         if (list.isEmpty()) return 1.0f

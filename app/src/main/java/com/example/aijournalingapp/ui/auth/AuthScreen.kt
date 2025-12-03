@@ -1,5 +1,6 @@
 package com.example.aijournalingapp.ui.auth
 
+import android.app.Activity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,6 +10,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.content.res.Configuration
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.aijournalingapp.ui.theme.AIJournalingAppTheme
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 private val BgColor = Color(0xFFF9F7F2)
 @Composable
@@ -54,6 +60,30 @@ fun LoginScreen(
     val loading by viewModel.loading.collectAsState()
     val error by viewModel.error.collectAsState()
     val user by viewModel.user.collectAsState()
+    // Cần có WEB_CLIENT_ID của bạn từ Firebase Console -> Authentication -> Sign-in method -> Google -> Web SDK configuration
+// (Thường lưu trong strings.xml hoặc hằng số)
+    val webClientId = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com" // ví dụ
+
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(webClientId) // YÊU CẦU ID TOKEN TỪ SERVER CLIENT ID
+        .requestEmail()
+        .build()
+    val googleSignInClient = GoogleSignIn.getClient(context, gso)
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                // Gửi ID Token đến ViewModel để đăng nhập Firebase
+                viewModel.signInWithGoogle(account.idToken!!)
+            } catch (e: ApiException) {
+                // Xử lý lỗi (ví dụ: hiển thị Toast)
+            }
+        }
+    }
 
     // When user becomes non-null -> navigate to HOME
     LaunchedEffect(user) {
