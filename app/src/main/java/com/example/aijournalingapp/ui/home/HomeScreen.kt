@@ -26,6 +26,22 @@ import androidx.navigation.NavController
 import com.example.aijournalingapp.ui.components.EmotionTreeArt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import com.example.aijournalingapp.ui.auth.AuthViewModel
+import androidx.compose.runtime.collectAsState
 // Màu cục bộ
 private val BgColor = Color(0xFFF9F7F2) // Trắng kem
 private val CardBg = Color.White
@@ -73,6 +89,105 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF6F00)) // Lửa cam đậm
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C),maxLines = 1)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    // Right: Avatar with dropdown menu
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    // lấy AuthViewModel và user
+                    val authVM: AuthViewModel = viewModel()
+                    val user by authVM.user.collectAsState()
+
+                    val initial = user?.name?.firstOrNull()?.uppercaseChar()?.toString()
+                        ?: user?.email?.firstOrNull()?.uppercaseChar()?.toString()
+                        ?: "U"
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clickable { menuExpanded = true },
+                            shape = CircleShape,
+                            tonalElevation = 4.dp,
+                            shadowElevation = 4.dp,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                            )
+                        ) {
+                            // Avatar content: initials or icon. Replace with Image if you have URL.
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Text(
+                                    text = initial,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            modifier = Modifier.width(IntrinsicSize.Min)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Xem hồ sơ") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    // navController.navigate("profile")
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Cài đặt") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    // navController.navigate("settings")
+                                }
+                            )
+
+                            Divider()
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Đăng xuất",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ExitToApp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    // thực hiện logout: gọi authVM.logout() hoặc callback onLogout()
+                                    authVM.logout()
+                                    navController.navigate("welcome") {
+                                        popUpTo(0)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
