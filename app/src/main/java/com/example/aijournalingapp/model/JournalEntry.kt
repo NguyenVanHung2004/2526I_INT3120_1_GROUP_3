@@ -13,3 +13,8 @@ data class JournalEntry(
     val date: String = SimpleDateFormat("dd/MM", Locale("vi", "VN")).format(Date()),
     val fakeAiAdvice: String // Giả lập lời khuyên AI
 ): Serializable
+data class User(
+    val id: String,
+    val email: String,
+    val name: String?
+)

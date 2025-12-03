@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.aijournalingapp.ui.auth.LoginScreen
+import com.example.aijournalingapp.ui.auth.RegisterScreen
+import com.example.aijournalingapp.ui.auth.WelcomeScreen
 import com.example.aijournalingapp.ui.entry.EntryScreen
 import com.example.aijournalingapp.ui.home.HomeScreen
 import com.example.aijournalingapp.ui.insight.InsightScreen
@@ -12,7 +15,16 @@ import com.example.aijournalingapp.ui.insight.InsightScreen
 fun AppNavigation() {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "home") {
+    NavHost(navController = navController, startDestination = "welcome") {
+        composable("welcome") {
+            WelcomeScreen(navController)
+        }
+        composable("login") {
+            LoginScreen(navController)
+        }
+        composable("register") {
+            RegisterScreen(navController)
+        }
         composable("home") {
             HomeScreen(navController)
         }
