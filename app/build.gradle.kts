@@ -5,6 +5,7 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val getLocalProperty = rootProject.extensions.extraProperties.get("getLocalProperty") as (String, String) -> String
 android {
     namespace = "com.example.aijournalingapp"
     compileSdk = 36
@@ -17,6 +18,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GEMINI_API_KEY", getLocalProperty("GEMINI_API_KEY", ""))
     }
 
     buildTypes {
@@ -37,6 +39,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

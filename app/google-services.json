@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "851826122530",
+    "project_id": "soulleaf-31f23",
+    "storage_bucket": "soulleaf-31f23.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851826122530:android:1c33190200476f5416cf7b",
+        "android_client_info": {
+          "package_name": "com.example.aijournalingapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "851826122530-i14ev2ll6fboqnu0k4j5bmat38kt3dgs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.aijournalingapp",
+            "certificate_hash": "d4226e9ad8eb9065656abe0f05ffae92a7c12aab"
+          }
+        },
+        {
+          "client_id": "851826122530-o09b1qpor2ekl1ri90htlq3bpa1a8p70.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZe6CalFLLRTUTJREstM_gLlYPNpie9sc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "851826122530-o09b1qpor2ekl1ri90htlq3bpa1a8p70.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

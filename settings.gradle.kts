@@ -21,4 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "AI Journaling App"
 include(":app")
+
+
  

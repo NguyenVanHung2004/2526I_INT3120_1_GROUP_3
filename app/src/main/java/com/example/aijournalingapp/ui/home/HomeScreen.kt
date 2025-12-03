@@ -9,7 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.ExitToApp // Icon Đăng xuất mới
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,23 +26,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.aijournalingapp.ui.components.EmotionTreeArt
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.LocalFireDepartment
+import com.example.aijournalingapp.data.FirebaseRepository // Import FirebaseRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
-import com.example.aijournalingapp.ui.auth.AuthViewModel
-import androidx.compose.runtime.collectAsState
+
+
 // Màu cục bộ
 private val BgColor = Color(0xFFF9F7F2) // Trắng kem
 private val CardBg = Color.White
@@ -50,9 +52,13 @@ private val TextLight = Color(0xFF78909C)
 private val AccentGreen = Color(0xFF81C784)
 
 @Composable
-fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewModel()) {
-    val context = LocalContext.current
-    LaunchedEffect(Unit) { viewModel.refreshData(context) }
+fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: HomeViewModel = viewModel()) {
+    // Không cần gọi viewModel.refreshData(context) nữa vì đã dùng Flow trong init
+    LaunchedEffect(Unit) { viewModel.refreshData() }
+
+    // Lấy thông tin người dùng cho Header
+    val firebaseUser: FirebaseUser? = Firebase.auth.currentUser
+    val userName = firebaseUser?.displayName ?: firebaseUser?.email ?: "Người dùng"
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         LazyColumn(
@@ -68,7 +74,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Chào bạn,",
+                            "Chào bạn,$userName$",
                             style = MaterialTheme.typography.headlineMedium.copy(color = TextLight)
                         )
                         Text(
@@ -79,28 +85,11 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                             )
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    // [MỚI] Icon Streak (Chuỗi ngày)
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFECB3)), // Màu vàng cam nhạt
-                        shape = RoundedCornerShape(50)
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF6F00)) // Lửa cam đậm
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C),maxLines = 1)
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    // Right: Avatar with dropdown menu
-                    var menuExpanded by remember { mutableStateOf(false) }
-                    // lấy AuthViewModel và user
-                    val authVM: AuthViewModel = viewModel()
-                    val user by authVM.user.collectAsState()
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                    val initial = user?.name?.firstOrNull()?.uppercaseChar()?.toString()
-                        ?: user?.email?.firstOrNull()?.uppercaseChar()?.toString()
-                        ?: "U"
+                    // [MỚI] Nút Đăng xuất
+                    var menuExpanded by remember { mutableStateOf(false) }
+
                     Box(
                         contentAlignment = Alignment.Center
                     ) {
@@ -123,7 +112,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 Text(
-                                    text = initial,
+                                    text = "A",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -181,24 +170,34 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
                                 },
                                 onClick = {
                                     menuExpanded = false
-                                    // thực hiện logout: gọi authVM.logout() hoặc callback onLogout()
-                                    authVM.logout()
-                                    navController.navigate("welcome") {
-                                        popUpTo(0)
-                                    }
+                                    onLogout() // callback từ caller
                                 }
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Icon Streak (Chuỗi ngày)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFECB3)),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF6F00))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("${viewModel.currentStreak.value} ngày", fontWeight = FontWeight.Bold, color = Color(0xFFBF360C),maxLines = 1)
                         }
                     }
                 }
             }
 
-            // 2. Cây cảm xúc (Truyền điểm vào để vẽ cây)
+            // 2. Cây cảm xúc
             item {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     EmotionTreeArt(
                         moodScore = viewModel.treeMoodScore.value,
-                        totalPoints = viewModel.totalPoints.value // Truyền điểm vào đây
+                        totalPoints = viewModel.totalPoints.value
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
@@ -214,7 +213,7 @@ fun HomeScreen(navController: NavController, viewModel: HomeViewModel = viewMode
             }
 
             // 4. Danh sách Nhật ký (Style mới)
-            items(viewModel.journals.value) { journal ->
+            items(viewModel.journals.value, key = { it.id }) { journal ->
                 HealingJournalItem(
                     date = journal.date,
                     mood = journal.mood,
@@ -269,8 +268,8 @@ fun HealingJournalItem(date: String, mood: String, content: String, onClick: () 
     ) {
         // Cột ngày tháng
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(date, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
-            Text("NOV", fontWeight = FontWeight.Medium, fontSize = 12.sp, color = TextLight)
+            Text(date.split("/").first(), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
+            Text("THÁNG ${date.split("/").last()}", fontWeight = FontWeight.Medium, fontSize = 12.sp, color = TextLight, maxLines = 1)
         }
 
         Spacer(modifier = Modifier.width(16.dp))

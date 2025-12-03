@@ -11,9 +11,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.aijournalingapp.MyNotificationListenerService
 import com.example.aijournalingapp.data.FirebaseRepository // DÙNG REPOSITORY MỚI
 import com.example.aijournalingapp.model.JournalEntry
+//import com.example.aijournalingapp.BuildConfig // ĐÚNG! Đây là BuildConfig của ứng dụng bạn.
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.launch
 import java.util.Calendar
+
 
 class EntryViewModel : ViewModel() {
     var content by mutableStateOf("")
@@ -24,7 +26,7 @@ class EntryViewModel : ViewModel() {
     var isAiMode by mutableStateOf(false)
 
     // 🔑 Key của bạn
-    private val apiKey = "AIzaSyCyDYrMlL7l9E8DnDVM744v6pb-i8CqnXU"
+    private val apiKey = "AIzaSyAgXJyK10aJ0rImvagWPqPVx7Ao33UXBZQ"
 
     private val generativeModel = GenerativeModel(
         modelName = "gemini-2.5-flash",
