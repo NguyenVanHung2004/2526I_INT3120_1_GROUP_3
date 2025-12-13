@@ -17,6 +17,7 @@ import com.example.aijournalingapp.ui.auth.LoginScreen
 import com.example.aijournalingapp.ui.auth.RegisterScreen
 import com.example.aijournalingapp.ui.auth.WelcomeScreen
 import com.example.aijournalingapp.ui.entry.EntryScreen
+import com.example.aijournalingapp.ui.habit.HabitScreen
 import com.example.aijournalingapp.ui.home.HomeScreen
 import com.example.aijournalingapp.ui.insight.InsightScreen
 
@@ -52,6 +53,9 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
         }
         composable("entry") {
             EntryScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable("habit") {
+            HabitScreen(navController = navController)
         }
         composable("insight/{journalId}") { backStackEntry ->
             val journalId = backStackEntry.arguments?.getString("journalId")

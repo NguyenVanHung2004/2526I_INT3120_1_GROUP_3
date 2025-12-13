@@ -4,16 +4,18 @@ import com.google.firebase.firestore.PropertyName
 import java.io.Serializable
 
 data class UserStats(
-    // Cần phải có @PropertyName khi dùng Kotlin Data Class với Firestore
-    @get:PropertyName("total_points")
-    val totalPoints: Int = 0,       // Tổng điểm tích lũy (để mở khóa cây)
+    // [QUAN TRỌNG] Đổi hết 'val' thành 'var'
+    // Hãy trả về mặc định = 0 (đừng để 100 nữa để test cho chuẩn)
 
-    @get:PropertyName("current_streak")
-    val currentStreak: Int = 0,     // Chuỗi ngày liên tục
+    @PropertyName("total_points")
+    var totalPoints: Int = 0,
 
-    @get:PropertyName("last_journal_date")
-    val lastJournalDate: Long = 0L, // Thời điểm viết bài cuối cùng (dùng để check qua ngày)
+    @PropertyName("current_streak")
+    var currentStreak: Int = 0,
 
-    @get:PropertyName("daily_points")
-    val dailyPoints: Int = 0        // Điểm đã kiếm được trong hôm nay (để giới hạn)
-) : Serializable // Giữ lại Serializable vì file này ban đầu dùng cho file I/O
+    @PropertyName("last_journal_date")
+    var lastJournalDate: Long = 0L,
+
+    @PropertyName("daily_points")
+    var dailyPoints: Int = 0
+) : Serializable

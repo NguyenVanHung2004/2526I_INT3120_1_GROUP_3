@@ -60,7 +60,7 @@ class EntryViewModel : ViewModel() {
                     generatedAdvice = text
                 }
             } catch (e: Exception) {
-                generatedAdvice = "Lỗi AI: ${e.message}"
+                generatedAdvice = ""
             } finally {
                 isAnalyzing = false
             }
