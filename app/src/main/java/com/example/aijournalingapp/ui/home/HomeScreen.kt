@@ -98,7 +98,7 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
 
                 DrawerMenuItem(
                     icon = Icons.Default.CheckCircle, // Icon Thói quen
-                    label = "Vườn ươm thói quen",
+                    label = "Nhiệm vụ hằng ngày",
                     isSelected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -217,7 +217,7 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                 // 2. Cây cảm xúc
                 item {
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        EmotionTreeArt(moodScore = viewModel.treeMoodScore.value*100, totalPoints = viewModel.totalPoints.value)
+                        EmotionTreeArt(moodScore = viewModel.treeMoodScore.value*100, totalPoints = viewModel.totalPoints.value.toInt())
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))

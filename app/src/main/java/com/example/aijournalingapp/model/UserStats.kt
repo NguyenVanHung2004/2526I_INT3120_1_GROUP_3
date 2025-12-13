@@ -4,14 +4,12 @@ import com.google.firebase.firestore.PropertyName
 import java.io.Serializable
 
 data class UserStats(
-    // [QUAN TRỌNG] Đổi hết 'val' thành 'var'
-    // Hãy trả về mặc định = 0 (đừng để 100 nữa để test cho chuẩn)
-
+    // [FIX]: Đổi Int -> Long để khớp 100% với Firestore
     @PropertyName("total_points")
-    var totalPoints: Int = 0,
+    var totalPoints: Long = 0,
 
     @PropertyName("current_streak")
-    var currentStreak: Int = 0,
+    var currentStreak: Int = 0, // Streak thường nhỏ, Int cũng được, nhưng Long càng tốt
 
     @PropertyName("last_journal_date")
     var lastJournalDate: Long = 0L,

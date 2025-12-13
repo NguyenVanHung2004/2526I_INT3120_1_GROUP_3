@@ -212,50 +212,45 @@ object FirebaseRepository {
         android.util.Log.d("DEBUG_TASK", "Bắt đầu toggle task: ${task.title}, Điểm task này: ${task.points}")
 
         db.runTransaction { transaction ->
-            // 1. Xử lý Task (Giữ nguyên)
+            // --- XỬ LÝ TASK (Giữ nguyên) ---
             val snapshot = transaction.get(taskDocRef)
             val rawList = snapshot.get("tasks") as? List<Map<String, Any>> ?: return@runTransaction
-
             var dbIsCompleted = false
-
             val updatedList = rawList.map { map ->
                 if (map["id"] == task.id) {
                     dbIsCompleted = map["isCompleted"] as? Boolean ?: false
                     map.toMutableMap().apply { this["isCompleted"] = !dbIsCompleted }
                 } else map
             }
-
-            // 2. Tính toán điểm thay đổi (Giữ nguyên)
             val pointChange = if (!dbIsCompleted) task.points else -task.points
 
-            // 3. Xử lý Stats [CÓ SỬA ĐỔI]
+            // --- XỬ LÝ STATS (SỬA LỖI TẠI ĐÂY) ---
             val statsSnapshot = transaction.get(statsDocRef)
             var currentPoints: Long = 0
+
+            // [FIX 1]: Đọc đúng trường camelCase "totalPoints" thay vì "total_points"
             if (statsSnapshot.exists()) {
-                currentPoints = statsSnapshot.getLong("total_points") ?: 0
+                currentPoints = statsSnapshot.getLong("totalPoints") ?: 0
             }
 
-            // [FIX LỖI ÂM ĐIỂM TẠI ĐÂY]
-            // Tính toán điểm mới, nếu < 0 thì lấy 0
             var newTotalPoints = currentPoints + pointChange
-            if (newTotalPoints < 0) {
-                newTotalPoints = 0
-            }
+            if (newTotalPoints < 0) newTotalPoints = 0
 
-            android.util.Log.d("DEBUG_TASK", "Trạng thái cũ trong DB: $dbIsCompleted")
-            android.util.Log.d("DEBUG_TASK", "Điểm hiện tại: $currentPoints, Thay đổi: $pointChange, Mới: $newTotalPoints")
+            android.util.Log.d("DEBUG_TASK", "Trạng thái cũ: $dbIsCompleted | Điểm cũ: $currentPoints -> Mới: $newTotalPoints")
 
-            // 4. Ghi vào DB
+            // Cập nhật Task
             transaction.update(taskDocRef, "tasks", updatedList)
 
             if (statsSnapshot.exists()) {
-                transaction.update(statsDocRef, "total_points", newTotalPoints)
+                // [FIX 2]: Update vào trường "totalPoints" (camelCase)
+                transaction.update(statsDocRef, "totalPoints", newTotalPoints)
             } else {
+                // [FIX 3]: Khởi tạo cũng phải dùng camelCase
                 val initialStats = mapOf(
-                    "total_points" to newTotalPoints,
-                    "current_streak" to 0,
-                    "daily_points" to (if (pointChange > 0) pointChange else 0), // Cũng chặn âm ở đây luôn cho chắc
-                    "last_journal_date" to 0L
+                    "totalPoints" to newTotalPoints,
+                    "currentStreak" to 0,
+                    "dailyPoints" to (if (pointChange > 0) pointChange else 0),
+                    "lastJournalDate" to 0L
                 )
                 transaction.set(statsDocRef, initialStats)
             }
