@@ -1,6 +1,6 @@
 package com.example.aijournalingapp.ui.home
 
-import android.widget.Toast
+import StreakJourneyDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,8 +10,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,11 +21,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.aijournalingapp.ui.chatbot.ChatBottomSheet
 import com.example.aijournalingapp.ui.components.EmotionTreeArt
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -31,7 +35,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
+import com.example.aijournalingapp.ui.chatbot.ChatbotFab // [IMPORT QUAN TRỌNG]
+import com.example.aijournalingapp.ui.chatbot.ChatbotViewModel
+import com.example.aijournalingapp.ui.components.TreeLevels
+import androidx.compose.material.icons.filled.Share
+import com.example.aijournalingapp.ui.components.ShareAchievementCard
+import com.example.aijournalingapp.utils.ImageShareUtils
 // Màu cục bộ
 private val BgColor = Color(0xFFF9F7F2)
 private val TextDark = Color(0xFF37474F)
@@ -44,13 +53,19 @@ private val ActiveTextColor = Color(0xFF2E7D32)
 fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: HomeViewModel = viewModel()) {
     LaunchedEffect(Unit) { viewModel.refreshData() }
 
+    // [MỚI]: Khai báo ChatViewModel và trạng thái hiển thị Dialog ở đây
+    val chatViewModel: ChatbotViewModel = viewModel()
+    var showChatDialog by remember { mutableStateOf(false) }
+    var showStreakDialog by remember { mutableStateOf(false) }
+    var showSharePreview by remember { mutableStateOf(false) }
+    var shouldCaptureImage by remember { mutableStateOf(false) }
     val firebaseUser = Firebase.auth.currentUser
     val userName = firebaseUser?.displayName ?: "Người dùng"
     val userEmail = firebaseUser?.email ?: ""
     // Quản lý trạng thái Drawer
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
+    val context = LocalContext.current
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -95,7 +110,15 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                     isSelected = true, // Đang ở trang chủ
                     onClick = { scope.launch { drawerState.close() } }
                 )
-
+                DrawerMenuItem(
+                    icon = Icons.Default.Face, // Dùng icon mặt người
+                    label = "Trợ lý cảm xúc",
+                    isSelected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showChatDialog = true // Mở hộp thoại chat
+                    }
+                )
                 DrawerMenuItem(
                     icon = Icons.Default.CheckCircle, // Icon Thói quen
                     label = "Nhiệm vụ hằng ngày",
@@ -106,30 +129,34 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                     }
                 )
 
+                // 4. [MỚI] Bộ sưu tập Linh Mộc (Thay cho Profile/Setting)
                 DrawerMenuItem(
-                    icon = Icons.Default.Person,
-                    label = "Hồ sơ của tôi",
+                    icon = Icons.Default.EmojiNature, // Icon hình thiên nhiên/cây cối
+                    label = "Bộ sưu tập Linh Mộc",
                     isSelected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        // TODO: Navigate to Profile
+                        navController.navigate("tree_gallery")
                     }
                 )
-
                 DrawerMenuItem(
-                    icon = Icons.Default.Settings,
-                    label = "Cài đặt",
+                    icon = Icons.Default.Share,
+                    label = "Chia sẻ thành tựu",
                     isSelected = false,
                     onClick = {
-                        scope.launch { drawerState.close() }
-                        // TODO: Navigate to Settings
+                        scope.launch { drawerState.close() } // Đóng menu
+                        showSharePreview = true // Mở dialog preview
                     }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp),
+                    thickness = DividerDefaults.Thickness,
+                    color = DividerDefaults.color
+                )
 
                 DrawerMenuItem(
-                    icon = Icons.Default.ExitToApp,
+                    icon = Icons.AutoMirrored.Filled.ExitToApp,
                     label = "Đăng xuất",
                     isSelected = false,
                     isDestructive = true,
@@ -143,64 +170,124 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
     ) {
         // --- NỘI DUNG MÀN HÌNH CHÍNH ---
         Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+            // [LOGIC MỚI]: Sắp xếp và Gom nhóm Nhật ký theo Ngày
+            val groupedJournals = remember(viewModel.journals.value) {
+                viewModel.journals.value
+                    .sortedByDescending { it.timestamp } // Mới nhất lên đầu
+                    .groupBy { journal ->
+                        // Tạo key gom nhóm: "Hôm nay" hoặc "Thứ Ba, 14/12/2025"
+                        val date = Date(journal.timestamp)
+                        val today = Date()
+                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+                        if (sdf.format(date) == sdf.format(today)) {
+                            "Hôm nay"
+                        } else {
+                            // Format: Thứ Hai, 10 tháng 12
+                            SimpleDateFormat("EEEE, d 'tháng' M", Locale("vi", "VN")).format(date).replaceFirstChar { it.uppercase() }
+                        }
+                    }
+            }
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 80.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                // 1. Header Mới (Gọn gàng hơn)
+                // 1. Header Mới (Đồng bộ & Sang trọng)
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
-                            .padding(top = 40.dp, bottom = 20.dp)
+                            .padding(top = 48.dp, bottom = 24.dp) // Tăng padding top chút cho thoáng
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Ngày tháng
-                            val today = SimpleDateFormat("EEEE, d MMM", Locale("vi", "VN")).format(Date())
-                            Text(
-                                text = today.uppercase(),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = TextLight
-                            )
+                            // A. Ngày tháng (Giữ nguyên)
+                            Column {
+                                val todayDate = SimpleDateFormat("d MMM", Locale("vi", "VN")).format(Date())
+                                val todayDay = SimpleDateFormat("EEEE", Locale("vi", "VN")).format(Date())
 
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                // Badge Streak
+                                Text(
+                                    text = todayDay.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextLight.copy(alpha = 0.7f),
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = todayDate,
+                                    style = MaterialTheme.typography.headlineSmall, // Chữ to hơn chút
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextDark
+                                )
+                            }
+
+                            // B. Cụm nút Streak & Avatar (Đã sửa lại cho đồng bộ)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // 1. Badge Streak: Nền trắng, bo tròn, đổ bóng nhẹ
                                 Surface(
-                                    color = Color(0xFFFFF3E0),
-                                    shape = RoundedCornerShape(50),
-                                    border = BorderStroke(1.dp, Color(0xFFFFE0B2))
+                                    shape = RoundedCornerShape(50), // Hình viên thuốc
+                                    color = Color.White,
+                                    modifier = Modifier.clickable { showStreakDialog = true },
+                                    shadowElevation = 2.dp, // Đổ bóng nhẹ tạo độ nổi
+                                    border = BorderStroke(1.dp, Color(0xFFF1F8E9)) // Viền xanh siêu nhạt
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            .height(32.dp), // Cố định chiều cao
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFF9800), modifier = Modifier.size(16.dp))
+                                        // Icon Lửa
+                                        Icon(
+                                            imageVector = Icons.Default.LocalFireDepartment,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFF9800), // Màu cam lửa
+                                            modifier = Modifier.size(20.dp)
+                                        )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("${viewModel.currentStreak.value}", style = MaterialTheme.typography.labelLarge, color = Color(0xFFEF6C00), fontWeight = FontWeight.Bold)
+                                        // Số ngày
+                                        Text(
+                                            "${viewModel.currentStreak.value}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextDark
+                                        )
                                     }
                                 }
 
-                                // Nút Avatar -> Mở Side Menu
+                                // 2. Avatar Button: Cũng nền trắng, đổ bóng y hệt Streak
                                 Surface(
                                     modifier = Modifier
-                                        .size(40.dp)
-                                        .clickable { scope.launch { drawerState.open() } }, // MỞ DRAWER
+                                        .size(46.dp) // Kích thước vuông vức bao quanh (lớn hơn chiều cao streak chút)
+                                        .clickable { scope.launch { drawerState.open() } },
                                     shape = CircleShape,
-                                    color = Color(0xFFEDE7F6),
-                                    border = BorderStroke(1.dp, Color(0xFFD1C4E9))
+                                    color = Color.White,
+                                    shadowElevation = 2.dp,
+                                    border = BorderStroke(1.dp, Color(0xFFF1F8E9))
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF673AB7)
-                                        )
+                                        // Vòng tròn màu bên trong (Avatar thực sự)
+                                        Surface(
+                                            modifier = Modifier.size(36.dp),
+                                            shape = CircleShape,
+                                            color = Color(0xFFE8F5E9) // Xanh nhạt (Theme App) thay vì Tím
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF2E7D32) // Chữ xanh đậm
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -208,8 +295,8 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
 
                         Spacer(modifier = Modifier.height(24.dp))
 
+                        // Lời chào (Giữ nguyên)
                         Text("Chào bạn, $userName", style = MaterialTheme.typography.titleMedium, color = TextLight)
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text("Hôm nay thế nào?", style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold, color = TextDark))
                     }
                 }
@@ -217,7 +304,15 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                 // 2. Cây cảm xúc
                 item {
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        EmotionTreeArt(moodScore = viewModel.treeMoodScore.value*100, totalPoints = viewModel.totalPoints.value.toInt())
+                        EmotionTreeArt(moodScore = viewModel.treeMoodScore.value*100, totalPoints = viewModel.totalPoints.value.toInt(),
+                                onTreeClick = { navController.navigate("tree_gallery") }
+                        )
+                        Text(
+                            "(Chạm vào cây để xem bộ sưu tập)",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -228,29 +323,101 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                     Text("Dòng chảy ký ức", modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium, color = TextDark)
                 }
 
-                // 4. Danh sách Nhật ký
-                items(viewModel.journals.value, key = { it.id }) { journal ->
-                    HealingJournalItem(
-                        date = journal.date,
-                        mood = journal.mood,
-                        content = journal.content,
-                        onClick = { navController.navigate("insight/${journal.id}") }
-                    )
+                groupedJournals.forEach { (dateString, journalsInDay) ->
+                    // A. Header Ngày (Ví dụ: "Hôm nay", "Thứ Ba...")
+                    item {
+                        Text(
+                            text = dateString,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color(0xFF90A4AE),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                        )
+                    }
+
+                    // B. Danh sách Nhật ký trong ngày đó
+                    items(journalsInDay, key = { it.id }) { journal ->
+                        HealingJournalItem(
+                            date = journal.date, // Vẫn giữ date hiển thị trên card để đẹp
+                            mood = journal.mood,
+                            content = journal.content,
+                            onClick = { navController.navigate("insight/${journal.id}") }
+                        )
+                    }
+                }
+
+                // Nếu chưa có nhật ký nào
+                if (groupedJournals.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                            Text("Chưa có ký ức nào...", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                 }
             }
 
-            // FAB
-            FloatingActionButton(
-                onClick = { navController.navigate("entry") },
-                containerColor = TextDark,
-                contentColor = Color.White,
-                shape = CircleShape,
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp)
-                    .size(64.dp)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp) // Khoảng cách giữa 2 nút
             ) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(32.dp))
+                // 1. Nút Chatbot AI (Nằm trên)
+                ChatbotFab(onClick = { showChatDialog = true })
+
+                // 2. Nút Thêm thủ công (Nằm dưới)
+                FloatingActionButton(
+                    onClick = { navController.navigate("entry") },
+                    containerColor = TextDark,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(32.dp))
+                }
+            }
+            if (showStreakDialog) {
+                StreakJourneyDialog(
+                    currentStreak = viewModel.currentStreak.value,
+                    onDismiss = { showStreakDialog = false }
+                )
+            }
+            if (showChatDialog) {
+                ChatBottomSheet(
+                    viewModel = chatViewModel,
+                    onDismiss = { showChatDialog = false }
+                )
+            }
+            if (showSharePreview) {
+                // Lấy thông tin cây hiện tại từ ViewModel hoặc tính toán trực tiếp
+                // Logic này giống hệt trong EmotionTreeArt
+                val currentPoints = viewModel.totalPoints.value.toInt()
+                val currentTreeInfo = TreeLevels.lastOrNull { currentPoints >= it.minPoints } ?: TreeLevels.first()
+
+                SharePreviewDialog(
+                    userName = userName,
+                    streak = viewModel.currentStreak.value,
+                    treeInfo = currentTreeInfo,
+                    onDismiss = { showSharePreview = false },
+                    onShareClick = {
+                        try {
+                            // Gọi hàm tiện ích chụp ảnh và share
+                            ImageShareUtils.shareComposableAsImage(context) {
+                                ShareAchievementCard(
+                                    userName = userName,
+                                    streak = viewModel.currentStreak.value,
+                                    treeInfo = currentTreeInfo
+                                )
+                            }
+                        }catch (e: Exception) {
+                            e.printStackTrace()
+                            // Hiện thông báo lỗi lên màn hình để biết đường sửa
+                            android.widget.Toast.makeText(context, "Lỗi: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        showSharePreview = false
+                    }
+                )
             }
         }
     }
@@ -320,6 +487,48 @@ fun HealingJournalItem(date: String, mood: String, content: String, onClick: () 
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = content, style = MaterialTheme.typography.bodyMedium, color = TextDark, maxLines = 2)
+        }
+    }
+}
+@Composable
+fun SharePreviewDialog(
+    userName: String,
+    streak: Int,
+    treeInfo: com.example.aijournalingapp.ui.components.TreeLevelInfo,
+    onDismiss: () -> Unit,
+    onShareClick: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            // Để background trong suốt để thấy bo góc của Card
+            modifier = Modifier.background(Color.Transparent)
+        ) {
+            // Hiển thị Card đẹp
+            ShareAchievementCard(userName = userName, streak = streak, treeInfo = treeInfo)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Các nút hành động
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Gray),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Đóng")
+                }
+
+                Button(
+                    onClick = onShareClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Chia sẻ ngay")
+                }
+            }
         }
     }
 }
