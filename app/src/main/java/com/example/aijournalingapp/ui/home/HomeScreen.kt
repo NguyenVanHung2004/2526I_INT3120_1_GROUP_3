@@ -74,7 +74,7 @@ fun HomeScreen(navController: NavController, onLogout: () -> Unit, viewModel: Ho
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Chào bạn,$userName$",
+                            "Chào bạn,",
                             style = MaterialTheme.typography.headlineMedium.copy(color = TextLight)
                         )
                         Text(
