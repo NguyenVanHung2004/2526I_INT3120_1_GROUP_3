@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aijournalingapp.BuildConfig
 import com.example.aijournalingapp.MyNotificationListenerService
 import com.example.aijournalingapp.data.FirebaseRepository // DÙNG REPOSITORY MỚI
 import com.example.aijournalingapp.model.JournalEntry
@@ -26,7 +27,7 @@ class EntryViewModel : ViewModel() {
     var isAiMode by mutableStateOf(false)
 
     // 🔑 Key của bạn
-    private val apiKey = "AIzaSyAgXJyK10aJ0rImvagWPqPVx7Ao33UXBZQ"
+    private val apiKey = BuildConfig.GEMINI_API_KEY
 
     private val generativeModel = GenerativeModel(
         modelName = "gemini-2.5-flash",
@@ -60,7 +61,7 @@ class EntryViewModel : ViewModel() {
                     generatedAdvice = text
                 }
             } catch (e: Exception) {
-                generatedAdvice = "Lỗi AI: ${e.message}"
+                generatedAdvice = ""
             } finally {
                 isAnalyzing = false
             }

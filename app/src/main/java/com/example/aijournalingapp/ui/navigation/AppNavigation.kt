@@ -12,11 +12,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.aijournalingapp.ui.auth.AuthScreen
 import com.example.aijournalingapp.ui.auth.AuthViewModel
-import com.example.aijournalingapp.ui.auth.LoginScreen
-import com.example.aijournalingapp.ui.auth.RegisterScreen
-import com.example.aijournalingapp.ui.auth.WelcomeScreen
+import com.example.aijournalingapp.ui.auth.SplashScreen
+import com.example.aijournalingapp.ui.components.TreeGalleryScreen
 import com.example.aijournalingapp.ui.entry.EntryScreen
+import com.example.aijournalingapp.ui.habit.HabitScreen
 import com.example.aijournalingapp.ui.home.HomeScreen
 import com.example.aijournalingapp.ui.insight.InsightScreen
 
@@ -26,7 +27,7 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
     val user by authViewModel.user.collectAsState()
 
     // Sử dụng biến để xác định điểm bắt đầu DỰA TRÊN trạng thái Auth
-    val startDestination = if (user != null) "home" else "welcome"
+    val startDestination = if (user != null) "home" else "splash"
 
     // [MỚI] Sử dụng một loading screen đơn giản trong khi Firebase Auth đang kiểm tra token
     if (user == null && authViewModel.loading.collectAsState().value) {
@@ -37,14 +38,13 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
-        composable("welcome") {
-            WelcomeScreen(navController)
+        composable("splash") {
+            SplashScreen(navController)
         }
+
+        // 2. Màn hình Đăng nhập/Đăng ký (Gộp chung route là "login")
         composable("login") {
-            LoginScreen(navController)
-        }
-        composable("register") {
-            RegisterScreen(navController)
+            AuthScreen(navController)
         }
         composable("home") {
             // Đảm bảo không thể quay lại màn hình Auth sau khi đăng nhập
@@ -52,6 +52,12 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
         }
         composable("entry") {
             EntryScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable("habit") {
+            HabitScreen(navController = navController)
+        }
+        composable("tree_gallery") {
+            TreeGalleryScreen(navController = navController)
         }
         composable("insight/{journalId}") { backStackEntry ->
             val journalId = backStackEntry.arguments?.getString("journalId")
