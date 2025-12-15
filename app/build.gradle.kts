@@ -80,4 +80,12 @@ dependencies {
     implementation(libs.generativeai)
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2") // Hoặc bản mới nhất
     implementation("androidx.savedstate:savedstate-ktx:1.2.1")
+
+    // Testing Dependencies
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+    testImplementation("androidx.test:core:1.5.0") // Cần cho Context/ApplicationProvider
+    testImplementation(kotlin("test"))
 }

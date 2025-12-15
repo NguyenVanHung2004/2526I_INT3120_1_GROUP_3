@@ -16,17 +16,31 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.example.aijournalingapp.utils.RealTimeProvider // [MỚI]
+import com.example.aijournalingapp.utils.TimeProvider
 
 /**
  * Repository xử lý tương tác với Firebase Firestore.
  */
 object FirebaseRepository {
+    // Inject TimeProvider vào đây, mặc định dùng RealTimeProvider
+    private val timeProvider: TimeProvider = RealTimeProvider() // [THAY ĐỔI]
     private val db: FirebaseFirestore = Firebase.firestore
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
     // CẤU HÌNH GAME (Giữ nguyên từ FakeRepository)
     private const val POINTS_PER_ENTRY = 10
     private const val MAX_POINTS_PER_DAY = 30
+
+    // Thêm hàm public để tùy chỉnh TimeProvider cho mục đích test
+    // Trong môi trường thực tế, bạn sẽ dùng DI framework (Hilt/Koin)
+    // Nhưng với object singleton, đây là cách đơn giản để inject cho test.
+    fun setTimeProvider(provider: TimeProvider) {
+        (this as java.lang.Object).javaClass.getDeclaredField("timeProvider").apply {
+            isAccessible = true
+            set(this@FirebaseRepository, provider)
+        }
+    }
 
     // Lưu ý: User ID là chìa khóa để phân biệt dữ liệu giữa các người dùng
     private fun getUserId(): String {
@@ -104,7 +118,7 @@ object FirebaseRepository {
 
     // LOGIC TÍNH ĐIỂM & STREAK (Giữ nguyên logic của bạn)
     private fun calculateUpdatedStats(lastStats: UserStats): UserStats {
-        val now = System.currentTimeMillis()
+        val now = timeProvider.getCurrentTimeMillis() // [THAY ĐỔI]
         val lastDate = lastStats.lastJournalDate
 
         val isSameDay = isSameDay(now, lastDate)
@@ -139,15 +153,16 @@ object FirebaseRepository {
     }
 
     private fun isSameDay(t1: Long, t2: Long): Boolean {
-        val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
-        val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
+        val c1 = timeProvider.getCalendarInstance().apply { timeInMillis = t1 } // [THAY ĐỔI]
+        val c2 = timeProvider.getCalendarInstance().apply { timeInMillis = t2 } // [THAY ĐỔI]
         return c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR) &&
                 c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR)
     }
 
     private fun isNextDay(current: Long, last: Long): Boolean {
-        val c1 = Calendar.getInstance().apply { timeInMillis = current }
-        val c2 = Calendar.getInstance().apply { timeInMillis = last }
+        // Sử dụng timeProvider.getCalendarInstance()
+        val c1 = timeProvider.getCalendarInstance().apply { timeInMillis = current } // [THAY ĐỔI]
+        val c2 = timeProvider.getCalendarInstance().apply { timeInMillis = last } // [THAY ĐỔI]
         c2.add(Calendar.DAY_OF_YEAR, 1)
         return c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR) &&
                 c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR)
